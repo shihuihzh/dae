@@ -38,6 +38,12 @@ func (c *ControlPlane) handleConn(lConn net.Conn) (err error) {
 	// Get tuples and outbound.
 	src := lConn.RemoteAddr().(*net.TCPAddr).AddrPort()
 	dst := lConn.LocalAddr().(*net.TCPAddr).AddrPort()
+	
+	// Try from dns cache
+	if domain == "" {
+	    domain = c.dnsController.findDomainByValue(dst.Addr())
+	}
+	
 	routingResult, err := c.core.RetrieveRoutingResult(src, dst, unix.IPPROTO_TCP)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve target info %v: %v", dst.String(), err)

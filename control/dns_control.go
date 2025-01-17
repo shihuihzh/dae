@@ -121,6 +121,32 @@ func NewDnsController(routing *dns.Dns, option *DnsControllerOption) (c *DnsCont
 	}, nil
 }
 
+
+func (c *DnsController)	findDomainByValue(ip netip.Addr) string {
+    c.dnsCacheMu.Lock()
+    defer c.dnsCacheMu.Unlock()
+
+    if ip.Is4In6() {
+        ip = netip.AddrFrom4(ip.As4())
+    }
+    
+    for cacheKey, cache := range c.dnsCache {
+        for _, answer := range cache.Answer {
+            switch rr := answer.(type) {
+                case *dnsmessage.A:
+                if netip.AddrFrom4([4]byte(rr.A)).Compare(ip) == 0 {
+                    return strings.TrimSuffix(cacheKey, "." + strconv.Itoa(int(dnsmessage.TypeA)))
+                }
+                case *dnsmessage.AAAA:
+                if netip.AddrFrom16([16]byte(rr.AAAA)).Compare(ip) == 0 {
+                    return strings.TrimSuffix(cacheKey, "." + strconv.Itoa(int(dnsmessage.TypeAAAA)))
+                }
+            }
+        }
+    }
+    return ""
+}
+
 func (c *DnsController) cacheKey(qname string, qtype uint16) string {
 	// To fqdn.
 	return dnsmessage.CanonicalName(qname) + strconv.Itoa(int(qtype))
